@@ -1,13 +1,25 @@
 package de.tubs.skeditor.views.safetygoalsview;
 
-import org.eclipse.jface.viewers.ILabelProviderListener;
-import org.eclipse.jface.viewers.ITableLabelProvider;
-import org.eclipse.swt.graphics.Image;
+import java.util.List;
 
+import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.eclipse.jface.viewers.ILabelProviderListener;
+import org.eclipse.jface.viewers.ITableColorProvider;
+import org.eclipse.jface.viewers.ITableFontProvider;
+import org.eclipse.jface.viewers.ITableLabelProvider;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.widgets.Display;
+
+import SkillGraph.Assumption;
 import SkillGraph.Node;
 import SkillGraph.Requirement;
+import de.tubs.skeditor.contracting.grammar.GrammarUtil;
+import de.tubs.skeditor.contracting.grammar.SyntaxError;
 
-public class LabelProvider implements ITableLabelProvider {
+public class LabelProvider implements ITableLabelProvider, ITableFontProvider, ITableColorProvider {
 
 	@Override
 	public void dispose() {
@@ -69,8 +81,65 @@ public class LabelProvider implements ITableLabelProvider {
 			default:
 				break;
 			}
+		} else if (element instanceof Assumption) {
+			Assumption as = (Assumption) element;
+			switch (columnIndex) {
+			case 0:
+				String name = "AS";
+				for (int i = 0; i < as.getNode().getAssumptions().size(); i++) {
+					if (as.equals(as.getNode().getAssumptions().get(i))) {
+						name += (i + 1);
+					}
+				}
+				return name;
+			case 1:
+				return as.getTerm();
+			case 2:
+				return as.getComment();
+			case 3:
+				return "Assumption";
+			default:
+				break;
+			}
 		}
 
+		return null;
+	}
+
+	@Override
+	public Color getForeground(Object element, int columnIndex) {
+		// TODO Auto-generated method stub
+		String Term = "";
+		if(element instanceof Requirement) 
+			Term = ((Requirement)element).getTerm();
+		else if(element instanceof Assumption) 
+			Term = ((Assumption)element).getTerm();
+		
+		if(element instanceof Requirement || element instanceof Assumption) {
+			switch (columnIndex) {
+			case 1:
+				List<SyntaxError> errors = GrammarUtil.tryToParse(Term);
+				if(errors.isEmpty())
+					return null;
+				else {
+					//TODO add markers fr syntax errors
+					return Display.getCurrent().getSystemColor(SWT.COLOR_RED);
+				}
+			default:break;
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public Color getBackground(Object element, int columnIndex) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Font getFont(Object element, int columnIndex) {
+		// TODO Auto-generated method stub
 		return null;
 	}
 

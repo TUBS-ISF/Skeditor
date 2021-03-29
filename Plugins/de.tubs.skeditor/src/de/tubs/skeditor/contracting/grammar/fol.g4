@@ -5,174 +5,438 @@
 
 grammar fol;
 
-/*------------------------------------------------------------------
- * PARSER RULES
- *------------------------------------------------------------------*/
+condition
+:
+	formula EOF
+	
+;
 
- condition
-   :formula EOF
-   ;
- formula
-   : formula bin_connective formula
-   | NOT formula bin_connective formula
-   | NOT formula 
-   | FORALL LPAREN variable RPAREN formula 
-   | EXISTS LPAREN variable RPAREN formula
-   | LPAREN formula RPAREN
-   | term binop term
-   | term
-   | BOOL_LITERAL
-   ;
+formula
+:
+	'"' formula '"' 
+	//| tupelformula
+	| connectiveformula
+	| quantifier
+	//| operatorformula
+	//| hasconditionformula
+	//| pred_constant LPAREN term
+	
+	//(
+		//';' term
+	//)* RPAREN
+;
 
+hascondition
+:
+	'has' LPAREN STRING RPAREN
+;
+quantifier
+:
+	QUANTIFER LPAREN TYPE? IDENTIFIER
+	(
+		';' TYPE? IDENTIFIER
+	)* RPAREN
+	LPAREN formula RPAREN
+;
+
+operatorformula
+:
+	OPERATOR TYPE? IDENTIFIER
+	(
+		';' term ';'  term
+	)? ';' formula
+;
+
+connectiveformula
+:
+	boolexpression (connectoperator connectiveformula)*
+	| NOT? LPAREN connectiveformula RPAREN (connectoperator connectiveformula)*
+	
+;
+ 
+tupelformula
+:
+	(
+		tupel
+		| functioncall
+	) (EQUAL | NEQUAL)
+	(
+		tupel
+		| functioncall
+	)
+;
+
+boolexpression
+:
+	(
+	| NOT boolexpression
+	| hascondition
+	| compareformula
+	| quantifier
+	| TRUE
+	| FALSE
+	)
+;
+compareformula
+:
+LPAREN compareformula RPAREN
+	|
+	(
+		summformula
+		(
+			compoperator summformula
+		)*
+	)
+;
+
+tupel
+:
+	LPAREN term
+	(
+		',' term
+	)* RPAREN
+;
+
+summformula
+:
+LPAREN summformula RPAREN
+	|
+	(
+		faktorformula
+		(
+			addoperator summformula
+		)*
+	)
+;
+
+faktorformula
+:
+	LPAREN faktorformula RPAREN
+	|
+	(
+		powerformula
+		(
+			multoperator faktorformula
+		)*
+	)
+;
+
+powerformula
+:
+	LPAREN powerformula LPAREN
+	|
+	(
+		term
+		(
+			POWER powerformula
+		)*
+	)
+;
+	
 term
-   : (PLUS|MINUS)* scientific
-   | (PLUS|MINUS)* variable
-   | LPAREN term RPAREN
-   | term (PLUS | MINUS) term
-   | term (TIMES | DIV) term
-   ;
-   
-scientific
-   : SCIENTIFIC_NUMBER
-   ;
+:
+	compproperty
+	| portproperty
+	| port
+	| functioncall
+	| array
+	| variable
+	| NUMBER
+	|
+	(
+		LPAREN MINUS
+		(
+			term
+		) RPAREN
+	)
+	//| STRING
+	|
+	(
+		LPAREN term RPAREN
+	)
+	//|
+	//(
+		//LPAREN formula RPAREN
+	//)
+;
+
+array
+:
+	(
+		(
+			COMPONENT CODEWORD
+		)
+		|
+		(
+			IDENTIFIER '.' 
+		)+
+	)? variable
+	(
+		'['
+		(
+			term
+			| formula
+		) ']'
+	)+
+;
+
+compproperty
+:
+	COMPONENT CODEWORD IDENTIFIER
+;
+
+portproperty
+:
+	IDENTIFIER CODEWORD
+	(
+		IDENTIFIER
+		| array
+	)
+;
+
+port
+:
+	IDENTIFIER
+	(
+		'.' IDENTIFIER
+	)+
+;
+
+functioncall
+:
+	IDENTIFIER '.' functionname LPAREN
+	(
+		term
+		| formula
+	)
+	(
+		','
+		(
+			term
+			| formula
+		)
+	)* RPAREN
+;
+
+functionname
+:
+	IDENTIFIER
+;
+
+compoperat1or
+:
+	GREATER
+	| SMALLER
+	| SMALLEREQ
+	| GREATEREQ
+	| EQUAL
+	| NEQUAL
+;
+
+multoperator
+:
+	MULTI
+	| DIVISION
+;
+
+addoperator
+:
+	MINUS
+	| ADD
+;
+
+connectoperator
+:
+	CONJ
+	| DISJ
+	| IMPL
+	| BICOND
+;
+
+pred_constant
+:
+	'_' CHARACTER*
+;
 
 variable
-   : VARIABLE
-   ;
+:
+	IDENTIFIER
+;
 
-binop
-   : EQUAL
-   | LEQ
-   | LT
-   | GEQ
-   | GT
-   ;
-   
-BOOL_LITERAL:       'true'
-            |       'false'
-            ;
+TYPE
+:
+	'int'
+	| 'float'
+;
 
-bin_connective
-   : CONJ
-   | DISJ
-   | IMPL
-   | BICOND
-   ;
-//used in FORALL|EXISTS and following predicates
-VARIABLE
-   : VALID_ID_START VALID_ID_CHAR*
-   ;
+TRUE
+:
+	'\\true'
+;
 
+FALSE
+:
+	'\\false'
+;
 
-fragment VALID_ID_START
-   : ('a' .. 'z') | ('A' .. 'Z') | '_'
-   ;
+CODEWORD
+:
+	'.$'
+;
 
+NULL
+:
+	'\\null'
+;
 
-fragment VALID_ID_CHAR
-   : VALID_ID_START | ('0' .. '9')
-   ;
-   
-//The NUMBER part gets its potential sign from "(PLUS | MINUS)* atom" in the expression rule
-SCIENTIFIC_NUMBER
-   : NUMBER (E SIGN? UNSIGNED_INTEGER)?
-   ;
+QUANTIFER
+:
+	'\\forall'
+	| '\\exists'
+;
 
-fragment NUMBER
-   : ('0' .. '9') + ('.' ('0' .. '9') +)?
-   ;
+OPERATOR
+:
+	'\\sum'
+	| '\\product'
+	| '\\max'
+	| '\\min'
+;
 
-fragment UNSIGNED_INTEGER
-   : ('0' .. '9')+
-   ;
+COMPONENT
+:
+	'\\super'
+	| '\\this'
+;
 
+STRING
+:
+	'"' CHARACTER+ '"'
+;
 
-fragment E
-   : 'E' | 'e'
-   ;
+IDENTIFIER
+:(
+[A-Z]
+		| [a-z]
+		| '_')
+	(
+		[A-Z]
+		| [a-z]
+		| '_'
+		| NUMBER
+	)*
+;
 
-
-fragment SIGN
-   : ('+' | '-')
-   ;
+NUMBER
+:
+	[0-9]+ ('.' [0-9]+)?
+;
 
 LPAREN
-   :'('
-   ;
-RPAREN
-   :')'
-   ;
-   
-PLUS
-   : '+'
-   ;
+:
+	'('
+;
 
+NOT
+:
+	'!'
+;
+
+RPAREN
+:
+	')'
+;
+
+POWER
+:
+	'^'
+;
+
+EQUAL
+:
+	'=='
+;
+
+NEQUAL
+:
+	'!='
+;
+
+ADD
+:
+	'+'
+;
 
 MINUS
-   : '-'
-   ;
+:
+	'-'
+;
 
+MULTI
+:
+	'*'
+;
 
-TIMES
-   : '*'
-   ;
+DIVISION
+:
+	'/'
+;
 
-
-DIV
-   : '/'
-   ;
-
-
-GT
-   : '>'
-   ;
-
-
-LT
-   : '<'
-   ;
-GEQ
-   : '>='
-   ;
-
-
-LEQ
-   : '<='
-   ;
-   
-separator
-   :','
-   ;
-EQUAL
-   :'='
-   ;
-NOT
-   :'!'
-   ;
-FORALL
-   :'Forall'
-   ;
-EXISTS
-   :'Exists'
-   ;
 CHARACTER
-   :('0' .. '9' | 'a' .. 'z' | 'A' .. 'Z')
-   ;
+:
+	[0-9]
+	| [A-Z]
+	| [a-z]
+	| '.'
+	| '_'
+;
+
 CONJ
-   :'&'
-   ;
+:
+	'&&' | '&' | 'and'
+;
+
 DISJ
-   :'|'
-   ;
+:
+	'||' | '|' | 'or'
+;
+
 IMPL
-   :'->'
-   ;
+:
+	'=>'
+;
+
 BICOND
-   :'<->'
-   ;
-ENDLINE
-   :('\r'|'\n')+
-   ;
+:
+	'<>'
+;
+
+GREATER
+:
+	'>'
+;
+
+SMALLER
+:
+	'<'
+;
+
+SMALLEREQ
+:
+	'<='
+;
+
+GREATEREQ
+:
+	'>='
+;
+
 WHITESPACE
-   :(' '|'\t')+->skip
-   ;
+:
+	(
+		' '
+		| '\t'
+		| '\n'
+	)+ -> skip
+; 
+
